@@ -9,7 +9,7 @@ setup(
   author_email = 'jorry.zhengyu@gmail.com',      # Type in your E-Mail
   url = 'https://github.com/JorryZ/strain3D',   # Provide either the link to your github or to your website
   download_url = 'https://github.com/JorryZ/strain3D/archive/v1.0.0.tar.gz',    # I explain this later on
-  keywords = ['BSF model', 'motion', '3D strain', 'myocardium'],   # Keywords that define your package best
+  keywords = ['BSF model', 'motion', '3D strain', 'myocardium', 'ECHO'],   # Keywords that define your package best
   install_requires=['numpy','medImgProc','scipy','trimesh','motionSegmentation'],
   classifiers=[
     'Development Status :: 5 - Production/Stable',      # Chose either "3 - Alpha", "4 - Beta" or "5 - Production/Stable" as the current state of your package    
