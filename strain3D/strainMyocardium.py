@@ -87,7 +87,7 @@ class strain3D:
         self.eigenValue = None
         print('strain3D_init_ done')
         
-    def initialize(self,coefFile=None,origin=None,shape=None,spacing=None,period=None,time=None,fourierFormat=None,fileScale=1.,delimiter=' ',SampleCoords=False,spacingDivision=[1.,1.5],gap=0):   
+    def initialize(self,coefFile=None,origin=None,shape=None,spacing=None,period=None,time=None,fourierFormat=None,fileScale=1.,delimiter=' ',getSampleCoord=False,spacingDivision=[1.,1.5],gap=0):   
         if type(coefFile)!=type(None):
             self.bsFourierPath = coefFile
             self.bsFourier.readFile(coefFile=coefFile,origin=origin,shape=shape,spacing=spacing,fourierFormat=fourierFormat,delimiter=delimiter)
@@ -98,7 +98,7 @@ class strain3D:
             self.shape=self.coefMat.shape
             self.coordMat = np.mgrid[self.origin[0]:(self.origin[0]+(self.shape[0]-0.1)*self.spacing[0]):self.spacing[0], self.origin[1]:(self.origin[1]+(self.shape[1]-0.1)*self.spacing[1]):self.spacing[1],self.origin[2]:(self.origin[2]+(self.shape[2]-0.1)*self.spacing[2]):self.spacing[2]].reshape(3,*self.shape[:3]).transpose(1,2,3,0)
             #self.coefMat=self.bsFourier.coef.reshape(-1, order='F')
-        if SampleCoords==True:
+        if getSampleCoord==True:
             self.sampleCoord=np.array(self.bsFourier.samplePoints(spacingDivision=spacingDivision[0],gap=gap))  #self.bsFourier.samplePoints()
             print('Initialization: sampleCoord has %d points.'%(len(self.sampleCoord)))
         
@@ -243,11 +243,12 @@ class strain3D:
         dim = len(self.spacing)
         temp=self.coordMotion
         size=self.coordMotion.shape
-        coordMotion=np.reshape(temp,(size[0]/(dim+1),size[1]*(dim+1)),order='C')
-        coordMotionA = coordMotion[:,0:1*size[1]]
-        coordMotionX = coordMotion[:,1*size[1]:2*size[1]]
-        coordMotionY = coordMotion[:,2*size[1]:3*size[1]]
-        coordMotionZ = coordMotion[:,3*size[1]:4*size[1]]
+        #coordMotion=np.reshape(temp,(int(size[0]/(dim+1)),int(size[1]*(dim+1))),order='C')
+        length = int(size[0]/(dim+1))
+        coordMotionA = temp[0:1*length,:]
+        coordMotionX = temp[1*length:2*length,:]
+        coordMotionY = temp[2*length:3*length,:]
+        coordMotionZ = temp[3*length:4*length,:]
         
         vectorX=coordMotionA-coordMotionX
         vectorY=coordMotionA-coordMotionY
@@ -257,28 +258,6 @@ class strain3D:
         vector.append(vectorZ)
         self.vector=vector.copy()
         #self.vector=np.array(vector.copy())
-        
-    def tensorNumericalCalc(self,sampleCoord=None,time=None,division=5.):
-        if type(time)==type(None):
-            time=np.arange(self.period)
-        tensor = []
-        
-        self.minDist=self.distCalc(coordA=sampleCoord,mode='min')
-        self.minAxesCalc()
-        self.assisCoordCalc(division=division)
-        self.coordMotionCalc(sampleCoord=sampleCoord,time=time)
-        self.vectorCalc()
-        vectorX=self.vector[0]
-        vectorY=self.vector[1]
-        vectorZ=self.vector[2]
-        refTime = time[0]
-        arbTime = time[1]
-        disRef = np.array(vectorX[refTime],vectorY[refTime],vectorZ[refTime])   #[sampleCoord, xyz]
-        disArb = np.array(vectorX[arbTime],vectorY[arbTime],vectorZ[arbTime])
-        for m in range(len(disRef)):
-            A = disRef[m].transpose()
-            B = disArb[m].transpose()
-            
         
     def stlNormal(self, stlName):
         # get the normal of the stl surface
@@ -407,7 +386,63 @@ class strain3D:
         plt.show()
         '''
         
+    def tensorNumericalCalc(self,sampleCoord=None,time=None,ifMinAxesCalc=False,division=5.):
+        '''
+        numerical method to calculate tensor
+        time needs include at least two time points: reference time, deformed time
+        '''
+        if type(sampleCoord)==type(None):
+            if type(self.sampleCoord)!=type(None):
+                sampleCoord=self.sampleCoord
+            else:
+                print('error: please input sampleCoord to calculate strain')
+                sys.exit()
+        else:
+            self.sampleCoord=sampleCoord
+        if type(time)==type(None):
+            time=np.arange(self.period)
+            
+        dim = len(self.spacing)
+        tensor = []
+        
+        self.minDist=self.distCalc(coordA=sampleCoord,mode='min')
+        if ifMinAxesCalc:
+            self.minAxesCalc()
+        self.assisCoordCalc(division=division)
+        sampleCoord = np.concatenate((sampleCoord,self.assisCoordX),axis=0)
+        sampleCoord = np.concatenate((sampleCoord,self.assisCoordY),axis=0)
+        sampleCoord = np.concatenate((sampleCoord,self.assisCoordZ),axis=0)
+        self.coordMotionCalc(sampleCoord=sampleCoord,time=time)
+        self.vectorCalc()
+        vectorX=self.vector[0]
+        vectorY=self.vector[1]
+        vectorZ=self.vector[2]
+        #refTime = time[0]
+        #arbTime = time[1]
+        disRef = np.zeros((len(vectorX),dim,dim))
+        disArb = np.zeros((len(vectorX),dim,dim))
+        #disRef = np.array(vectorX[:,0*dim:1*dim],vectorY[:,0*dim:1*dim],vectorZ[:,0*dim:1*dim])   #[sampleCoord, xyz]
+        #disArb = np.array(vectorX[:,1*dim:2*dim],vectorY[:,1*dim:2*dim],vectorZ[:,1*dim:2*dim])
+        for m in range(len(vectorX)):
+            disRef[m,:,0]=vectorX[m,0*dim:1*dim]
+            disRef[m,:,1]=vectorY[m,0*dim:1*dim]
+            disRef[m,:,2]=vectorZ[m,0*dim:1*dim]
+            disArb[m,:,0]=vectorX[m,1*dim:2*dim]
+            disArb[m,:,1]=vectorY[m,1*dim:2*dim]
+            disArb[m,:,2]=vectorZ[m,1*dim:2*dim]
+            
+            A = disRef[m]   #.transpose()
+            B = disArb[m]   #.transpose()
+            # tensor = B/A, matrix right division
+            temp = np.linalg.lstsq(A.T, B.T)[0].T
+            tensor.append(temp)
+        self.tensor = np.array(tensor.copy())
+        
     def tensorTheoreticalCalc(self, sampleCoord=None, time=None):
+        '''
+        theoretical method to calculate tensor, based on BSF model
+        time is one deformed time, reference time is fixed by the BSF.txt
+        '''
         if type(sampleCoord)==type(None):
             if type(self.sampleCoord)!=type(None):
                 sampleCoord=self.sampleCoord
