@@ -11,7 +11,9 @@ History:
     Date    Programmer SAR# - Description
     ---------- ---------- ----------------------------
   Author: jorry.zhengyu@gmail.com         20NOV2019             -V1.0.0 test version
-                                                        -strainMyocardium version 1.0.0                                            
+                                                        -strainMyocardium version 1.0.0  
+  Author: jorry.zhengyu@gmail.com         07Dec2019             -V1.0.1 test version
+                                                        -strainMyocardium version 1.0.1                                                        
                                                    
 Requirements:
     numpy
@@ -23,7 +25,7 @@ Requirements:
     pickle (optional)
 All rights reserved.
 """
-_version='1.0.0'
+_version='1.0.1'
 print('strain3D version',_version)
 
 import os
