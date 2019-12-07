@@ -11,8 +11,9 @@ History:
     Date    Programmer SAR# - Description
     ---------- ---------- ----------------------------
   Author: jorry.zhengyu@gmail.com         20NOV2019           -V1.0.0 Created, test version
+  Author: jorry.zhengyu@gmail.com         07Dec2019           -V1.0.1 add dimDist in function strain3D.centerPointFit
 """
-print('strainMyocardium test version 1.0.0')
+print('strainMyocardium test version 1.0.1')
 
 import sys
 import numpy as np
@@ -73,8 +74,9 @@ class strain3D:
         self.outerFaceCenter = None
         self.centerPoint = None
         self.centerLine = None
-        self.minZ = None
-        self.maxZ = None
+        self.longAxis = None
+        self.longAxisMin = None
+        self.longAxisMax = None
         
         self.longitAxis = None
         self.circumAxis = None
@@ -280,9 +282,10 @@ class strain3D:
         norm[ faces[:,2] ] += n
         normalize_v3(norm)
     
-    def centerPointFit(self, dataName=None, dimlen=None, badSlice=[5,3], stlSample=False):
+    def centerPointFit(self, dataName=None, dimlen=None, longAxis='z', badSlice=[5,3], stlSample=False):
         '''
         fit the center point of circle-like points
+        longAxis is the direction of center line
         badSlice: abandoned slice to fit center, apex part first, basal part second
         seperate inner surface points and outer surface points
         '''
@@ -311,25 +314,28 @@ class strain3D:
         if stlSample==True:
             self.sampleCoord=sampleData.copy()
         
+        dimDist = {'x':0,'y':1,'z':2,'X':0,'Y':1,'Z':2}
+        dim = dimDist[longAxis]
+        
         faceCenter=self.faceCenter.copy()
         faceNormal=self.faceNormal.copy()
-        minZ = np.min(sampleData[:,2])
-        maxZ = np.max(sampleData[:,2])
-        sliceLoc = minZ + badSlice[0]*dimlen[2]            #location of start slice
+        longAxisMin = np.min(sampleData[:,dim])
+        longAxisMax = np.max(sampleData[:,dim])
+        sliceLoc = longAxisMin + badSlice[0]*dimlen[dim]            #location of start slice
         centerPoint = []
         innerFaceCenter = None
         innerFaceNormal = None
         outerFaceCenter = None
         outerFaceNormal = None
-        while sliceLoc < (maxZ-badSlice[1]*dimlen[2]):       #location of end slice
+        while sliceLoc < (longAxisMax-badSlice[1]*dimlen[dim]):       #location of end slice
             #calculate center point, and seperate inner and outer face center
-            points = np.array([sampleData[i,:] for i in range(len(sampleData)) if sampleData[i,2]<(sliceLoc+dimlen[2]) and sampleData[i,2]>(sliceLoc-dimlen[2])])
+            points = np.array([sampleData[i,:] for i in range(len(sampleData)) if sampleData[i,dim]<(sliceLoc+dimlen[dim]) and sampleData[i,dim]>(sliceLoc-dimlen[dim])])
             center = np.mean(points,axis=0)
             centerPoint.append(center)
-            sliceLoc=sliceLoc+2*dimlen[2]
+            sliceLoc=sliceLoc+2*dimlen[dim]
             
             tempCenter = center.reshape((1,3))
-            index = np.array([i for i in range(len(faceCenter)) if faceCenter[i,2]<(sliceLoc+dimlen[2]) and faceCenter[i,2]>(sliceLoc-dimlen[2])])
+            index = np.array([i for i in range(len(faceCenter)) if faceCenter[i,dim]<(sliceLoc+dimlen[dim]) and faceCenter[i,dim]>(sliceLoc-dimlen[dim])])
             temp1=faceCenter[index]
             dist1=spatial.distance_matrix(temp1,tempCenter)
             temp2=temp1-faceNormal[index]
@@ -353,8 +359,9 @@ class strain3D:
         self.innerFaceNormal = np.array(innerFaceNormal.copy())
         self.outerFaceCenter = np.array(outerFaceCenter.copy())
         self.outerFaceNormal = np.array(outerFaceNormal.copy())
-        self.minZ = minZ
-        self.maxZ = maxZ
+        self.longAxis = dim
+        self.longAxisMin = longAxisMin
+        self.longAxisMax = longAxisMax
         
     def centerLineFit(self, data=None):
         '''
@@ -514,8 +521,8 @@ class strain3D:
         innerDistIndex=[]
         outerDistValue=[]
         outerDistIndex=[]
-        sampleCoord = sampleCoord[sampleCoord[:,2]>self.minZ]
-        sampleCoord = sampleCoord[sampleCoord[:,2]<self.maxZ]
+        sampleCoord = sampleCoord[sampleCoord[:,self.longAxis]>self.longAxisMin]
+        sampleCoord = sampleCoord[sampleCoord[:,self.longAxis]<self.longAxisMax]
         self.sampleCoord = sampleCoord.copy()
         for i in sampleCoord:
             sample=i.reshape((1,3))
