@@ -11,7 +11,7 @@ History:
     Date    Programmer SAR# - Description
     ---------- ---------- ----------------------------
   Author: jorry.zhengyu@gmail.com         20NOV2019           -V1.0.0 Created, test version
-  Author: jorry.zhengyu@gmail.com         07Dec2019           -V1.0.1 add dimDist in function strain3D.centerPointFit
+  Author: jorry.zhengyu@gmail.com         07Dec2019           -V1.0.1 function strain3D.centerPointFit: add dimDist, ajudgment for inner and outer points
 """
 print('strainMyocardium test version 1.0.1')
 
@@ -343,16 +343,20 @@ class strain3D:
             difDist=np.array(dist1-dist2)
             inner = np.array([i for i in range(len(difDist)) if difDist[i]<0])
             outer = np.array([i for i in range(len(difDist)) if difDist[i]>0])
-            try:
-                innerFaceCenter=np.concatenate((innerFaceCenter,faceCenter[index[inner]]),axis=0)
-                innerFaceNormal=np.concatenate((innerFaceNormal,faceNormal[index[inner]]),axis=0)
-                outerFaceCenter=np.concatenate((outerFaceCenter,faceCenter[index[outer]]),axis=0)
-                outerFaceNormal=np.concatenate((outerFaceNormal,faceNormal[index[outer]]),axis=0)
-            except:
-                innerFaceCenter=np.array(faceCenter[index[inner]])
-                innerFaceNormal=np.array(faceNormal[index[inner]])
-                outerFaceCenter=np.array(faceCenter[index[outer]])
-                outerFaceNormal=np.array(faceNormal[index[outer]])
+            if len(inner)!=0:
+                try:
+                    innerFaceCenter=np.concatenate((innerFaceCenter,faceCenter[index[inner]]),axis=0)
+                    innerFaceNormal=np.concatenate((innerFaceNormal,faceNormal[index[inner]]),axis=0)
+                except:
+                    innerFaceCenter=np.array(faceCenter[index[inner]])
+                    innerFaceNormal=np.array(faceNormal[index[inner]])
+            if len(outer)!=0:
+                try:
+                    outerFaceCenter=np.concatenate((outerFaceCenter,faceCenter[index[outer]]),axis=0)
+                    outerFaceNormal=np.concatenate((outerFaceNormal,faceNormal[index[outer]]),axis=0)
+                except:
+                    outerFaceCenter=np.array(faceCenter[index[outer]])
+                    outerFaceNormal=np.array(faceNormal[index[outer]])
             
         self.centerPoint = np.array(centerPoint.copy())
         self.innerFaceCenter = np.array(innerFaceCenter.copy())
