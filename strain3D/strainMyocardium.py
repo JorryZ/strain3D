@@ -12,8 +12,9 @@ History:
     ---------- ---------- ----------------------------
   Author: jorry.zhengyu@gmail.com         20NOV2019           -V1.0.0 Created, test version
   Author: jorry.zhengyu@gmail.com         07Dec2019           -V1.0.1 function strain3D.centerPointFit: add dimDist, ajudgment for inner and outer points
+  Author: jorry.zhengyu@gmail.com         03JAN2020           -V1.0.2 function strain3D.centerPointFit: add more option for stlSample
 """
-print('strainMyocardium test version 1.0.1')
+print('strainMyocardium test version 1.0.2')
 
 import sys
 import numpy as np
@@ -287,7 +288,9 @@ class strain3D:
         fit the center point of circle-like points
         longAxis is the direction of center line
         badSlice: abandoned slice to fit center, apex part first, basal part second
-        seperate inner surface points and outer surface points
+            seperate inner surface points and outer surface points
+        stlSample: True: assign sampleData to sampleCoord (vertices), 'cut': sampleData and abandon part of apex and basal (vertices); False: no;
+                    'innercut': innerFaceCenter and abandon part of apex and basal (faces); 'outercut': outerFaceCenter and abandon part of apex and basal (faces)
         '''
         if type(dataName)==type(None):
             try:
@@ -357,6 +360,11 @@ class strain3D:
                 except:
                     outerFaceCenter=np.array(faceCenter[index[outer]])
                     outerFaceNormal=np.array(faceNormal[index[outer]])
+            if stlSample=='cut':
+                if type(self.sampleCoord)==type(None):
+                    self.sampleCoord=points
+                else:
+                    self.sampleCoord=np.concatenate((self.sampleCoord,points),axis=0)
             
         self.centerPoint = np.array(centerPoint.copy())
         self.innerFaceCenter = np.array(innerFaceCenter.copy())
@@ -366,6 +374,13 @@ class strain3D:
         self.longAxis = dim
         self.longAxisMin = longAxisMin
         self.longAxisMax = longAxisMax
+        
+        if stlSample=='innercut':
+            self.sampleCoord=self.innerFaceCenter
+        elif stlSample=='outercut':
+            self.sampleCoord=self.outerFaceCenter
+        elif stlSample==True:
+            self.sampleCoord=sampleData
         
     def centerLineFit(self, data=None):
         '''
