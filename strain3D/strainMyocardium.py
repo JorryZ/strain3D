@@ -16,8 +16,9 @@ History:
   Author: renmeifeng05@gmail.com          19JUN2020           -V1.0.3 add class strain2D
   Author: jorry.zhengyu@gmail.com         25JUN2020           -V1.0.4 modify assisCoordCalc function and vectorClac function
   Author: jorry.zhengyu@gmail.com         09July2020          -V1.0.5 change definition of longAxisMin and longAxisMax
+  Author: jorry.zhengyu@gmail.com         09July2020          -V1.0.6 centerLine direction define
 """
-print('strainMyocardium test version 1.0.5')
+print('strainMyocardium test version 1.0.6')
 
 import sys
 import numpy as np
@@ -62,6 +63,7 @@ class strain3D:
         self.assisCoordX=None
         self.assisCoordY=None
         self.assisCoordZ=None
+        self.lowPart = None
         self.vector=None
         
         self.coordCoef=[]
@@ -252,6 +254,7 @@ class strain3D:
         self.assisCoordX = self.assisCoord[:,0:dim]
         self.assisCoordY = self.assisCoord[:,dim:2*dim]
         self.assisCoordZ = self.assisCoord[:,2*dim:3*dim]
+        self.lowPart = lowPart
         
     def coordMotionCalc(self,sampleCoord=None,time=None):
         '''
@@ -628,8 +631,23 @@ class strain3D:
         self.sampleNormal=sampleNormal.copy()
         
         centerLine = self.centerLine.copy()
+        if centerLine[1,self.longAxis]>centerLine[0,self.longAxis]:
+            temp1 = centerLine[1,:]
+            temp0 = centerLine[0,:]
+        else:
+            temp1 = centerLine[0,:]
+            temp0 = centerLine[1,:]
+        
+        if self.lowPart == 'apex':
+            temp = temp0 - temp1
+        elif self.lowPart == 'basal':
+            temp = temp1 - temp0
+        else:
+            print('ERROR: lowPart must be apex or basal')
+            sys.exit()
+        
         self.radialAxis = sampleNormal.copy()
-        n = np.cross( centerLine[1,:] - centerLine[0,:]  , self.radialAxis )
+        n = np.cross( temp  , self.radialAxis )
         normalize_v3(n)
         self.circumAxis = n.copy()
         n = np.cross( self.radialAxis  , self.circumAxis )
