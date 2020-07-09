@@ -15,8 +15,9 @@ History:
   Author: jorry.zhengyu@gmail.com         03JAN2020           -V1.0.2 function strain3D.centerPointFit: add more option for stlSample
   Author: renmeifeng05@gmail.com          19JUN2020           -V1.0.3 add class strain2D
   Author: jorry.zhengyu@gmail.com         25JUN2020           -V1.0.4 modify assisCoordCalc function and vectorClac function
+  Author: jorry.zhengyu@gmail.com         09July2020          -V1.0.5 change definition of longAxisMin and longAxisMax
 """
-print('strainMyocardium test version 1.0.4')
+print('strainMyocardium test version 1.0.5')
 
 import sys
 import numpy as np
@@ -422,8 +423,12 @@ class strain3D:
         self.outerFaceCenter = np.array(outerFaceCenter.copy())
         self.outerFaceNormal = np.array(outerFaceNormal.copy())
         self.longAxis = dim
-        self.longAxisMin = longAxisMin
-        self.longAxisMax = longAxisMax
+        if type(badSlice) != type(None):
+            self.longAxisMin = longAxisMin + badSlice[0]*dimlen[dim]
+            self.longAxisMax = longAxisMax-badSlice[1]*dimlen[dim]
+        else:
+            self.longAxisMin = longAxisMin
+            self.longAxisMax = longAxisMax
         
         if stlSample=='innercut':
             self.sampleCoord=self.innerFaceCenter
