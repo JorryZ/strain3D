@@ -17,8 +17,9 @@ History:
   Author: jorry.zhengyu@gmail.com         25JUN2020           -V1.0.4 modify assisCoordCalc function and vectorClac function
   Author: jorry.zhengyu@gmail.com         09July2020          -V1.0.5 change definition of longAxisMin and longAxisMax
   Author: jorry.zhengyu@gmail.com         09July2020          -V1.0.6 centerLine direction define
+  Author: jorry.zhengyu@gmail.com         09July2020          -V1.0.7 lowPart input function change
 """
-print('strainMyocardium test version 1.0.6')
+print('strainMyocardium test version 1.0.7')
 
 import sys
 import numpy as np
@@ -189,15 +190,15 @@ class strain3D:
             data=np.reshape(temp,(np.product(temp.shape),1))
             self.minAxes[axes]=self.distCalc(coordA=data,mode='min')
             
-    def assisCoordCalc(self, minType = 'minDist', division=5., pixelNum=2., lowPart = 'apex', assisCoordCheck=False, vtkName = None, dimlen2 = None):
+    def assisCoordCalc(self, minType = 'minDist', division=5., pixelNum=2., assisCoordCheck=False, vtkName = None, dimlen2 = None):
         '''
         get assisCoord based on the minAxes, for calculation of displacement
         assisCoordCheck: check whether assistant points are inside the myocardium using VTK
-        lowPart: the part close to the origin, basal or apex
         '''
         
         assisCoord = self.sampleCoord
         dim = len(self.spacing)
+        lowPart = self.lowPart
         for i in range(dim-1):
             assisCoord=np.concatenate((assisCoord,self.sampleCoord),axis=1)
         
@@ -254,7 +255,6 @@ class strain3D:
         self.assisCoordX = self.assisCoord[:,0:dim]
         self.assisCoordY = self.assisCoord[:,dim:2*dim]
         self.assisCoordZ = self.assisCoord[:,2*dim:3*dim]
-        self.lowPart = lowPart
         
     def coordMotionCalc(self,sampleCoord=None,time=None):
         '''
@@ -582,9 +582,10 @@ class strain3D:
         #print(np.max(np.abs(self.strain[:,0,0])))
         print('strain calculated!!!')
         
-    def clinicalStrainAxis(self, sampleCoord=None, order=2):
+    def clinicalStrainAxis(self, sampleCoord=None, lowPart = 'apex', order=2):
         '''
         clinical strain axis (direction): longitudinal strain, circumferential strain, radial strain, area strain
+        lowPart: the part close to the origin, basal or apex
         '''
         # need test
         if type(sampleCoord)==type(None):
@@ -595,6 +596,7 @@ class strain3D:
         innerFaceNormal = np.array(self.innerFaceNormal.copy())
         outerFaceCenter = np.array(self.outerFaceCenter.copy())
         outerFaceNormal = np.array(self.outerFaceNormal.copy())
+        self.lowPart = lowPart
         
         innerDistValue=[]
         innerDistIndex=[]
