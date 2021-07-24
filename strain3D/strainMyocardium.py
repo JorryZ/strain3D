@@ -342,7 +342,7 @@ class strain3D:
         call centerPointFit and centerLineFit
         '''
         self.centerPointFit(dataName=dataName, dimlen=dimlen, longAxis=longAxis, badSlice=badSlice, stlSample=stlSample)
-        self.centerPointFit()
+        self.centerLineFit()
     
     def centerPointFit(self, dataName=None, dimlen=None, longAxis='z', badSlice=[5,3], stlSample=False):
         '''
