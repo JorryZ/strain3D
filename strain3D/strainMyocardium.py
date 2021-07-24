@@ -18,8 +18,9 @@ History:
   Author: jorry.zhengyu@gmail.com         09July2020          -V1.0.5 change definition of longAxisMin and longAxisMax
   Author: jorry.zhengyu@gmail.com         09July2020          -V1.0.6 centerLine direction define
   Author: jorry.zhengyu@gmail.com         09July2020          -V1.0.7 lowPart input function change
+  Author: jorry.zhengyu@gmail.com         24July2020          -V1.0.8 centerLine redefine as 1by3 vector, eg [0,0,1]
 """
-print('strainMyocardium test version 1.0.7')
+print('strainMyocardium test version 1.0.8')
 
 import sys
 import numpy as np
@@ -54,7 +55,7 @@ class strain3D:
         self.bsFourierPath=None
         
         self.dimlen=None    #physical length of each (x,y,z) pixel
-        self.sampleCoord =None
+        self.sampleCoord =None      # points to calculate strains
         self.sampleNormal=None
         self.bsFourier=BsplineFourier.BsplineFourier()
         
@@ -64,7 +65,7 @@ class strain3D:
         self.assisCoordX=None
         self.assisCoordY=None
         self.assisCoordZ=None
-        self.lowPart = None
+        self.lowPart = 'apex'
         self.vector=None
         
         self.coordCoef=[]
@@ -336,6 +337,13 @@ class strain3D:
         norm[ faces[:,2] ] += n
         normalize_v3(norm)
     
+    def centerLineFromStl(self, dataName=None, dimlen=None, longAxis='z', badSlice=[5,3], stlSample=False):
+        '''
+        call centerPointFit and centerLineFit
+        '''
+        self.centerPointFit(dataName=dataName, dimlen=dimlen, longAxis=longAxis, badSlice=badSlice, stlSample=stlSample)
+        self.centerPointFit()
+    
     def centerPointFit(self, dataName=None, dimlen=None, longAxis='z', badSlice=[5,3], stlSample=False):
         '''
         fit the center point of circle-like points
@@ -458,7 +466,23 @@ class strain3D:
         
         linepts = vh[0] * np.mgrid[-1*distMax:distMax:2j][:, np.newaxis]
         linepts += datamean
-        self.centerLine=linepts.copy()
+        
+        if linepts[1,self.longAxis]>linepts[0,self.longAxis]:
+            temp1 = linepts[1,:]
+            temp0 = linepts[0,:]
+        else:
+            temp1 = linepts[0,:]
+            temp0 = linepts[1,:]
+        
+        if self.lowPart == 'apex':
+            temp = temp0 - temp1
+        elif self.lowPart == 'basal':
+            temp = temp1 - temp0
+        else:
+            print('ERROR: lowPart must be apex or basal')
+            sys.exit()
+        
+        self.centerLine=temp.copy()
         
         '''
         import matplotlib.pyplot as plt
@@ -469,7 +493,68 @@ class strain3D:
         ax.plot3D(*linepts.T)
         plt.show()
         '''
+    
+    def clinicalStrainAxis(self, sampleCoord=None, order=2):
+        '''
+        clinical strain axis (direction): longitudinal strain, circumferential strain, radial strain, area strain
+        lowPart: the part close to the origin, basal or apex
+        '''
+        # need test
+        if type(sampleCoord)==type(None):
+            sampleCoord=np.array(self.sampleCoord.copy())
+        else:
+            self.sampleCoord=np.array(sampleCoord.copy())
+        innerFaceCenter = np.array(self.innerFaceCenter.copy())
+        innerFaceNormal = np.array(self.innerFaceNormal.copy())
+        outerFaceCenter = np.array(self.outerFaceCenter.copy())
+        outerFaceNormal = np.array(self.outerFaceNormal.copy())
         
+        
+        innerDistValue=[]
+        innerDistIndex=[]
+        outerDistValue=[]
+        outerDistIndex=[]
+        if type(self.longAxisMin) != type(None):
+            sampleCoord = sampleCoord[sampleCoord[:,self.longAxis]>self.longAxisMin]
+            sampleCoord = sampleCoord[sampleCoord[:,self.longAxis]<self.longAxisMax]
+        self.sampleCoord = sampleCoord.copy()
+        for i in sampleCoord:
+            sample=i.reshape((1,3))
+            #sample=np.append(sample,sample,axis=0)
+            innerValue,innerIndex = np.array(self.distCalc(innerFaceCenter,sample,mode='min'))
+            outerValue,outerIndex = np.array(self.distCalc(outerFaceCenter,sample,mode='min'))
+            innerDistValue.append(innerValue)
+            innerDistIndex.append(innerIndex)
+            outerDistValue.append(outerValue)
+            outerDistIndex.append(outerIndex)
+        # if memory big enough, use codes below
+        #innerDistValue,innerDistIndex = np.array(self.distCalc(innerFaceCenter,sampleCoord,mode='min'))
+        #outerDistValue,outerDistIndex = np.array(self.distCalc(outerFaceCenter,sampleCoord,mode='min'))
+        innerDistIndex = np.array(innerDistIndex).astype(int).reshape((1,-1),order='C')
+        innerDistIndex = innerDistIndex.tolist()[0]
+        innerDistValue = np.array(innerDistValue).reshape((1,-1),order='C').transpose()
+        outerDistIndex = np.array(outerDistIndex).astype(int).reshape((1,-1),order='C')
+        outerDistIndex = outerDistIndex.tolist()[0]
+        outerDistValue = np.array(outerDistValue).reshape((1,-1),order='C').transpose()
+        
+        innerSampleNormal = innerFaceNormal[innerDistIndex]
+        outerSampleNormal = outerFaceNormal[outerDistIndex]
+        innerWeight=outerDistValue**order/(innerDistValue**order+outerDistValue**order)
+        outerWeight=innerDistValue**order/(innerDistValue**order+outerDistValue**order)
+        sampleNormal=(-1)*innerSampleNormal*innerWeight+outerSampleNormal*outerWeight
+        normalize_v3(sampleNormal)
+        self.sampleNormal=sampleNormal.copy()
+        
+        centerLine = self.centerLine.copy()
+        
+        self.radialAxis = sampleNormal.copy()
+        n = np.cross( centerLine  , self.radialAxis )
+        normalize_v3(n)
+        self.circumAxis = n.copy()
+        n = np.cross( self.radialAxis  , self.circumAxis )
+        normalize_v3(n)
+        self.longitAxis = n.copy()
+    
     def tensorNumericalCalc(self,sampleCoord=None,time=None):
         '''
         numerical method to calculate tensor
@@ -582,79 +667,6 @@ class strain3D:
         #print(np.max(np.abs(self.strain[:,0,0])))
         print('strain calculated!!!')
         
-    def clinicalStrainAxis(self, sampleCoord=None, lowPart = 'apex', order=2):
-        '''
-        clinical strain axis (direction): longitudinal strain, circumferential strain, radial strain, area strain
-        lowPart: the part close to the origin, basal or apex
-        '''
-        # need test
-        if type(sampleCoord)==type(None):
-            sampleCoord=np.array(self.sampleCoord.copy())
-        else:
-            self.sampleCoord=np.array(sampleCoord.copy())
-        innerFaceCenter = np.array(self.innerFaceCenter.copy())
-        innerFaceNormal = np.array(self.innerFaceNormal.copy())
-        outerFaceCenter = np.array(self.outerFaceCenter.copy())
-        outerFaceNormal = np.array(self.outerFaceNormal.copy())
-        self.lowPart = lowPart
-        
-        innerDistValue=[]
-        innerDistIndex=[]
-        outerDistValue=[]
-        outerDistIndex=[]
-        sampleCoord = sampleCoord[sampleCoord[:,self.longAxis]>self.longAxisMin]
-        sampleCoord = sampleCoord[sampleCoord[:,self.longAxis]<self.longAxisMax]
-        self.sampleCoord = sampleCoord.copy()
-        for i in sampleCoord:
-            sample=i.reshape((1,3))
-            #sample=np.append(sample,sample,axis=0)
-            innerValue,innerIndex = np.array(self.distCalc(innerFaceCenter,sample,mode='min'))
-            outerValue,outerIndex = np.array(self.distCalc(outerFaceCenter,sample,mode='min'))
-            innerDistValue.append(innerValue)
-            innerDistIndex.append(innerIndex)
-            outerDistValue.append(outerValue)
-            outerDistIndex.append(outerIndex)
-        # if memory big enough, use codes below
-        #innerDistValue,innerDistIndex = np.array(self.distCalc(innerFaceCenter,sampleCoord,mode='min'))
-        #outerDistValue,outerDistIndex = np.array(self.distCalc(outerFaceCenter,sampleCoord,mode='min'))
-        innerDistIndex = np.array(innerDistIndex).astype(int).reshape((1,-1),order='C')
-        innerDistIndex = innerDistIndex.tolist()[0]
-        innerDistValue = np.array(innerDistValue).reshape((1,-1),order='C').transpose()
-        outerDistIndex = np.array(outerDistIndex).astype(int).reshape((1,-1),order='C')
-        outerDistIndex = outerDistIndex.tolist()[0]
-        outerDistValue = np.array(outerDistValue).reshape((1,-1),order='C').transpose()
-        
-        innerSampleNormal = innerFaceNormal[innerDistIndex]
-        outerSampleNormal = outerFaceNormal[outerDistIndex]
-        innerWeight=outerDistValue**order/(innerDistValue**order+outerDistValue**order)
-        outerWeight=innerDistValue**order/(innerDistValue**order+outerDistValue**order)
-        sampleNormal=(-1)*innerSampleNormal*innerWeight+outerSampleNormal*outerWeight
-        normalize_v3(sampleNormal)
-        self.sampleNormal=sampleNormal.copy()
-        
-        centerLine = self.centerLine.copy()
-        if centerLine[1,self.longAxis]>centerLine[0,self.longAxis]:
-            temp1 = centerLine[1,:]
-            temp0 = centerLine[0,:]
-        else:
-            temp1 = centerLine[0,:]
-            temp0 = centerLine[1,:]
-        
-        if self.lowPart == 'apex':
-            temp = temp0 - temp1
-        elif self.lowPart == 'basal':
-            temp = temp1 - temp0
-        else:
-            print('ERROR: lowPart must be apex or basal')
-            sys.exit()
-        
-        self.radialAxis = sampleNormal.copy()
-        n = np.cross( temp  , self.radialAxis )
-        normalize_v3(n)
-        self.circumAxis = n.copy()
-        n = np.cross( self.radialAxis  , self.circumAxis )
-        normalize_v3(n)
-        self.longitAxis = n.copy()
         
     def clinicalStrainCalc(self):
         strain = self.strain.copy()
