@@ -18,7 +18,7 @@ History:
   Author: jorry.zhengyu@gmail.com         09July2020          -V1.0.5 change definition of longAxisMin and longAxisMax
   Author: jorry.zhengyu@gmail.com         09July2020          -V1.0.6 centerLine direction define
   Author: jorry.zhengyu@gmail.com         09July2020          -V1.0.7 lowPart input function change
-  Author: jorry.zhengyu@gmail.com         24July2020          -V1.0.8 centerLine redefine as 1by3 vector, eg [0,0,1]
+  Author: jorry.zhengyu@gmail.com         24July2021          -V1.0.8 centerLine redefine as 1by3 vector, eg [0,0,1]
 """
 print('strainMyocardium test version 1.0.8')
 
