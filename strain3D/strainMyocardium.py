@@ -82,6 +82,7 @@ class strain3D:
         self.outerFaceCenter = None
         self.centerPoint = None
         self.centerLine = None
+        self.centerLinePoints = None
         self.longAxis = None
         self.longAxisMin = None
         self.longAxisMax = None
@@ -316,7 +317,7 @@ class strain3D:
         self.vector=vector.copy()
         #self.vector=np.array(vector.copy())
         
-    def stlNormal(self, stlName):
+    def stlNormal(self, stlName=None, dimlen=None, longAxis='z', badSlice=[1,1], stlSample=False):
         # get the normal of the stl surface
         stlData=trimesh.load(stlName)
         vertices = stlData.vertices
@@ -336,19 +337,15 @@ class strain3D:
         norm[ faces[:,1] ] += n
         norm[ faces[:,2] ] += n
         normalize_v3(norm)
+        
+        self.centerPointFit(dataName=stlName, dimlen=dimlen, longAxis=longAxis, badSlice=badSlice, stlSample=stlSample)
+        
     
-    def centerLineFromStl(self, dataName=None, dimlen=None, longAxis='z', badSlice=[5,3], stlSample=False):
-        '''
-        call centerPointFit and centerLineFit
-        '''
-        self.centerPointFit(dataName=dataName, dimlen=dimlen, longAxis=longAxis, badSlice=badSlice, stlSample=stlSample)
-        self.centerLineFit()
-    
-    def centerPointFit(self, dataName=None, dimlen=None, longAxis='z', badSlice=[5,3], stlSample=False):
+    def centerPointFit(self, dataName=None, dimlen=None, longAxis='z', badSlice=[1,1], stlSample=False):
         '''
         fit the center point of circle-like points
-        longAxis is the direction of center line
-        badSlice: abandoned slice to fit center, part close to origin first, part away from origin second
+        longAxis is the main direction of center line
+        badSlice: abandoned slice to fit center, lower part first, higher part second
             seperate inner surface points and outer surface points
         stlSample: True: assign sampleData to sampleCoord (vertices), 'cut': sampleData and abandon part of apex and basal (vertices); False: no;
                     'innercut': innerFaceCenter and abandon part of apex and basal (faces); 'outercut': outerFaceCenter and abandon part of apex and basal (faces)
@@ -376,8 +373,6 @@ class strain3D:
                 sys.exit()
             stlData=trimesh.load(dataName)
             sampleData=stlData.vertices
-        if stlSample==True:
-            self.sampleCoord=sampleData.copy()
         
         dimDist = {'x':0,'y':1,'z':2,'X':0,'Y':1,'Z':2}
         dim = dimDist[longAxis]
@@ -397,7 +392,7 @@ class strain3D:
             points = np.array([sampleData[i,:] for i in range(len(sampleData)) if sampleData[i,dim]<(sliceLoc+dimlen[dim]) and sampleData[i,dim]>(sliceLoc-dimlen[dim])])
             center = np.mean(points,axis=0)
             centerPoint.append(center)
-            sliceLoc=sliceLoc+2*dimlen[dim]
+            
             
             tempCenter = center.reshape((1,3))
             index = np.array([i for i in range(len(faceCenter)) if faceCenter[i,dim]<(sliceLoc+dimlen[dim]) and faceCenter[i,dim]>(sliceLoc-dimlen[dim])])
@@ -427,6 +422,8 @@ class strain3D:
                     self.sampleCoord=points
                 else:
                     self.sampleCoord=np.concatenate((self.sampleCoord,points),axis=0)
+            sliceLoc=sliceLoc+2*dimlen[dim]
+            
             
         self.centerPoint = np.array(centerPoint.copy())
         self.innerFaceCenter = np.array(innerFaceCenter.copy())
@@ -483,6 +480,7 @@ class strain3D:
             sys.exit()
         
         self.centerLine=temp.copy()
+        self.centerLinePoints=linepts.copy()
         
         '''
         import matplotlib.pyplot as plt
@@ -557,7 +555,7 @@ class strain3D:
     
     def tensorNumericalCalc(self,sampleCoord=None,time=None):
         '''
-        numerical method to calculate tensor
+        numerical method to calculate deformation matrix (tensor)
         time needs include at least two time points: reference time, deformed time
         '''
         if type(sampleCoord)==type(None):
