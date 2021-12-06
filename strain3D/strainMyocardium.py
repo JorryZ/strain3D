@@ -19,8 +19,9 @@ History:
   Author: jorry.zhengyu@gmail.com         09July2020          -V1.0.6 centerLine direction define
   Author: jorry.zhengyu@gmail.com         09July2020          -V1.0.7 lowPart input function change
   Author: jorry.zhengyu@gmail.com         24July2021          -V1.0.8 centerLine redefine as 1by3 vector, eg [0,0,1]
+  Author: jorry.zhengyu@gmail.com         06Dec2021           -V1.0.9 add single STL surface normal calculation
 """
-print('strainMyocardium test version 1.0.8')
+print('strainMyocardium test version 1.0.9')
 
 import sys
 import numpy as np
@@ -181,7 +182,20 @@ class strain3D:
                     distValue.append(max(dist[i]))
                     distIndex.append(dist[i].index(distValue[i]))
             return distValue,distIndex
-        
+        '''
+        to find k min elements
+        x = np.array([23, 12, 1, 3, 3, 4, 2])
+        # value of k
+        k = 3
+          
+        # using np.argpartition()
+        result = np.argpartition(x, k)
+          
+        # k smallest number of array
+        print(k, "smallest elements of the array")
+        print(result)
+        print(x[result])
+        '''
     def minAxesCalc(self):
         '''
         calculate the min distances from each axes (x,y,z), 
@@ -317,8 +331,31 @@ class strain3D:
         self.vector=vector.copy()
         #self.vector=np.array(vector.copy())
         
-    def stlNormal(self, stlName=None, dimlen=None, longAxis='z', badSlice=[1,1], stlSample=False):
-        # get the normal of the stl surface
+    def stlNormal(self, stlName=None, dimlen=None, longAxis='z', badSlice=[1,1], stlSample=False, stlLayer=2):
+        '''
+        Get the normal of the stl surface
+            and call centerPointFit function to seperate inner and outer surface and calculate layer-based center points along long-axis
+        
+        Parameters
+        ----------
+        stlName : string, compulsory
+            DESCRIPTION. The default is None.
+        dimlen : list, compulsory
+            DESCRIPTION. The default is None.
+        longAxis : char, compulsory
+            DESCRIPTION. The default is 'z'.
+        badSlice : list, optional
+            DESCRIPTION. The default is [1,1], exclusion of top and bottom slices
+        stlSample : bool, optional
+            DESCRIPTION. The default is False.
+        stlLayer : int, optional
+            DESCRIPTION. The default is 2 for two layer stl, 1 for single layer stl
+
+        Returns
+        -------
+        None.
+
+        '''      
         stlData=trimesh.load(stlName)
         vertices = stlData.vertices
         faces = stlData.faces
@@ -338,10 +375,10 @@ class strain3D:
         norm[ faces[:,2] ] += n
         normalize_v3(norm)
         
-        self.centerPointFit(dataName=stlName, dimlen=dimlen, longAxis=longAxis, badSlice=badSlice, stlSample=stlSample)
+        self.centerPointFit(dataName=stlName, dimlen=dimlen, longAxis=longAxis, badSlice=badSlice, stlSample=stlSample, stlLayer=stlLayer)
         
     
-    def centerPointFit(self, dataName=None, dimlen=None, longAxis='z', badSlice=[1,1], stlSample=False):
+    def centerPointFit(self, dataName=None, dimlen=None, longAxis='z', badSlice=[1,1], stlSample=False, stlLayer=2):
         '''
         fit the center point of circle-like points
         longAxis is the main direction of center line
@@ -392,8 +429,7 @@ class strain3D:
             points = np.array([sampleData[i,:] for i in range(len(sampleData)) if sampleData[i,dim]<(sliceLoc+dimlen[dim]) and sampleData[i,dim]>(sliceLoc-dimlen[dim])])
             center = np.mean(points,axis=0)
             centerPoint.append(center)
-            
-            
+                        
             tempCenter = center.reshape((1,3))
             index = np.array([i for i in range(len(faceCenter)) if faceCenter[i,dim]<(sliceLoc+dimlen[dim]) and faceCenter[i,dim]>(sliceLoc-dimlen[dim])])
             temp1=faceCenter[index]
@@ -426,10 +462,14 @@ class strain3D:
             
             
         self.centerPoint = np.array(centerPoint.copy())
-        self.innerFaceCenter = np.array(innerFaceCenter.copy())
-        self.innerFaceNormal = np.array(innerFaceNormal.copy())
-        self.outerFaceCenter = np.array(outerFaceCenter.copy())
-        self.outerFaceNormal = np.array(outerFaceNormal.copy())
+        if stlLayer==2:
+            self.innerFaceCenter = np.array(innerFaceCenter.copy())
+            self.innerFaceNormal = np.array(innerFaceNormal.copy())
+            self.outerFaceCenter = np.array(outerFaceCenter.copy())
+            self.outerFaceNormal = np.array(outerFaceNormal.copy())
+        elif stlLayer==1:
+            self.outerFaceCenter = np.array(faceCenter.copy())
+            self.outerFaceNormal = np.array(faceNormal.copy())
         self.longAxis = dim
         if type(badSlice) != type(None):
             self.longAxisMin = longAxisMin + badSlice[0]*dimlen[dim]
@@ -496,14 +536,18 @@ class strain3D:
         '''
         clinical strain axis (direction): longitudinal strain, circumferential strain, radial strain, area strain
         lowPart: the part close to the origin, basal or apex
+        order: power or order to calculate weights
         '''
-        # need test
         if type(sampleCoord)==type(None):
             sampleCoord=np.array(self.sampleCoord.copy())
         else:
             self.sampleCoord=np.array(sampleCoord.copy())
-        innerFaceCenter = np.array(self.innerFaceCenter.copy())
-        innerFaceNormal = np.array(self.innerFaceNormal.copy())
+        if type(self.innerFaceNormal)==type(None):
+            innerFaceCenter = np.array(self.outerFaceCenter.copy())
+            innerFaceNormal = np.array(self.outerFaceNormal.copy()*(-1))
+        else:
+            innerFaceCenter = np.array(self.innerFaceCenter.copy())
+            innerFaceNormal = np.array(self.innerFaceNormal.copy())
         outerFaceCenter = np.array(self.outerFaceCenter.copy())
         outerFaceNormal = np.array(self.outerFaceNormal.copy())
         
