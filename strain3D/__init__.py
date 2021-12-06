@@ -28,6 +28,8 @@ History:
                                                         -strainMyocardium version 1.0.7 
   Author: jorry.zhengyu@gmail.com         24July2021            -V1.0.8 test version
                                                         -strainMyocardium version 1.0.8                                                         
+  Author: jorry.zhengyu@gmail.com         06Dec2021             -V1.0.9 test version
+                                                        -strainMyocardium version 1.0.9
  
 Requirements:
     numpy
@@ -39,7 +41,7 @@ Requirements:
     pickle (optional)
 All rights reserved.
 """
-_version='1.0.8'
+_version='1.0.9'
 print('strain3D version',_version)
 
 import os
